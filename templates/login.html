@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BabyLog - ログイン</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="w-full max-w-xs">
+        <form action="/auth" method="post" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <div class="mb-4">
+                <h1 class="text-2xl font-bold text-center text-gray-700 mb-6">BabyLog</h1>
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="passcode">
+                    パスコード
+                </label>
+                <input
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    id="passcode" name="passcode" type="password" placeholder="********">
+            </div>
+            <div class="flex items-center justify-between">
+                <button
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+                    type="submit">
+                    ログイン
+                </button>
+            </div>
+             <!-- Optional: Display error message -->
+            <script>
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('error')) {
+                    const errorP = document.createElement('p');
+                    errorP.className = 'text-red-500 text-xs italic mt-4 text-center';
+                    errorP.textContent = 'パスコードが違います。';
+                    document.querySelector('form').appendChild(errorP);
+                }
+            </script>
+        </form>
+        <p class="text-center text-gray-500 text-xs">
+            &copy;2026 BabyLog
+        </p>
+    </div>
+</body>
+</html>
