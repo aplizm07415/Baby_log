@@ -110,9 +110,11 @@ def delete_event(event_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Event not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.get("/api/prediction", response_model=schemas.Prediction)
-def get_prediction(db: Session = Depends(get_db)):
-    return crud.get_next_milk_prediction(db=db)
+@app.get("/api/prediction", response_model=schemas.Predictions)
+def get_predictions(db: Session = Depends(get_db)):
+    milk_prediction = crud.get_next_milk_prediction(db=db)
+    diaper_prediction = crud.get_next_diaper_prediction(db=db)
+    return schemas.Predictions(milk=milk_prediction, diaper=diaper_prediction)
 
 # Example of how to run with uvicorn:
 # uvicorn main:app --reload

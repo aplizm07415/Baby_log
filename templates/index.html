@@ -11,347 +11,308 @@
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/utc.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/duration.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/ja.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-dayjs@1.0.0"></script>
     <style>
-        /* For smooth transitions */
-        .fade-enter-active, .fade-leave-active {
-            transition: opacity 0.5s;
+        [v-cloak] { display: none; }
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.3s ease;
         }
-        .fade-enter, .fade-leave-to {
+        .fade-enter-from,
+        .fade-leave-to {
             opacity: 0;
-        }
-        [v-cloak] {
-            display: none;
         }
     </style>
 </head>
 
-<body class="bg-gray-50">
+<body class="bg-slate-100 text-slate-800">
+{% raw %}
+    <div id="app" v-cloak class="container mx-auto max-w-6xl p-4 sm:p-6">
 
-    <div id="app" v-cloak class="container mx-auto max-w-2xl p-4">
-
-        <h1 class="text-3xl font-bold text-center text-gray-800 my-4">BabyLog</h1>
-
-        <!-- Prediction Area -->
-        <div :class="predictionBgColor" class="p-4 rounded-lg shadow-md text-center mb-6 transition-colors duration-500">
-            <p class="text-xl font-semibold">{{ prediction.message }}</p>
-            <p v-if="prediction.next_milk_time" class="text-lg">
-                {{ formatTime(prediction.next_milk_time) }} 頃 ({{ fromNow(prediction.next_milk_time) }})
-            </p>
-        </div>
-
-        <!-- Main View (Wife Mode) -->
-        <div v-if="currentView === 'main'">
-            <!-- Action Buttons -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <button @click="logBreastfeeding" :class="breastfeedingClass" class="text-lg font-bold py-8 rounded-lg shadow-lg transition-colors">
-                    🤱 {{ breastfeedingTimer.isActive ? '母乳終了' : '母乳開始' }}
-                    <span v-if="breastfeedingTimer.isActive" class="block text-sm">{{ breastfeedingTimer.elapsed }}</span>
-                </button>
-                <button @click="logEvent('milk')" class="bg-blue-500 hover:bg-blue-600 text-white text-lg font-bold py-8 rounded-lg shadow-lg">🍼 ミルク</button>
-                <button @click="logEvent('pee')" class="bg-yellow-500 hover:bg-yellow-600 text-white text-lg font-bold py-8 rounded-lg shadow-lg">💧 おしっこ</button>
-                <button @click="logEvent('poop')" class="bg-amber-700 hover:bg-amber-800 text-white text-lg font-bold py-8 rounded-lg shadow-lg">💩 うんち</button>
-                 <button @click="logEvent('pee_poop')" class="bg-lime-600 hover:bg-lime-700 text-white text-lg font-bold py-8 rounded-lg shadow-lg col-span-2">💧💩 両方</button>
-            </div>
-
-            <!-- Recent History -->
-            <h2 class="text-xl font-semibold mb-2">直近の記録</h2>
-            <ul class="bg-white rounded-lg shadow p-4 space-y-2">
-                <li v-if="latestEvents.length === 0" class="text-gray-500">記録がありません</li>
-                <li v-for="event in latestEvents" :key="event.id" class="flex justify-between items-center border-b pb-2">
-                    <div>
-                        <span class="font-bold">{{ getEventTypeDisplay(event.event_type) }}</span>
-                        <span v-if="event.amount"> ({{ event.amount }}{{ event.event_type === 'breastfeeding' ? '分' : 'ml' }})</span>
-                        <span class="text-sm text-gray-600 ml-2">{{ formatTime(event.timestamp) }}</span>
-                    </div>
-                    <button @click="deleteEvent(event.id)" class="text-red-500 hover:text-red-700 text-sm">取り消し</button>
-                </li>
-            </ul>
-        </div>
-        
-        <!-- Dashboard View (Husband Mode) -->
-        <div v-if="currentView === 'dashboard'">
-            <h2 class="text-2xl font-bold mb-4">ダッシュボード</h2>
-            <!-- Chart -->
-            <div class="mb-8">
-                <canvas id="eventsChart"></canvas>
-            </div>
-
-            <!-- Full Timeline -->
-            <h3 class="text-xl font-semibold mb-2">全履歴</h3>
-             <ul class="bg-white rounded-lg shadow p-4 space-y-2">
-                <li v-for="event in allEvents" :key="event.id" class="flex justify-between items-center border-b pb-2">
-                    <div>
-                        <span class="font-bold">{{ getEventTypeDisplay(event.event_type) }}</span>
-                         <span v-if="event.is_pee && !event.is_poop">💧</span>
-                         <span v-if="!event.is_pee && event.is_poop">💩</span>
-                         <span v-if="event.is_pee && event.is_poop">💧💩</span>
-                        <span v-if="event.amount"> ({{ event.amount }}{{ event.event_type === 'breastfeeding' ? '分' : 'ml' }})</span>
-                        <span class="text-sm text-gray-600 ml-2">{{ formatDateTime(event.timestamp) }}</span>
-                        <p v-if="event.note" class="text-sm text-gray-500">{{ event.note }}</p>
-                    </div>
-                    <button @click="deleteEvent(event.id)" class="text-red-500 hover:text-red-700 text-sm">削除</button>
-                </li>
-            </ul>
-        </div>
-
-        <!-- View Switcher -->
-        <div class="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-2 text-center">
-            <button @click="toggleView" class="text-blue-500 hover:text-blue-700 font-semibold">
-                {{ currentView === 'main' ? 'ダッシュボードを見る' : 'メイン画面に戻る' }}
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-900">BabyLog</h1>
+            <button @click="toggleView" class="p-2 rounded-full hover:bg-slate-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
             </button>
-        </div>
-    </div>
+        </header>
 
+        <transition name="fade" mode="out-in">
+            <!-- Main View -->
+            <main v-if="currentView === 'main'" key="main">
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-4 gap-3 sm:gap-4 mb-6">
+                    <button @click="logBreastfeeding" :class="breastfeedingClass" class="aspect-square rounded-2xl shadow-sm flex flex-col items-center justify-center transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 2.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM15.5 2.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM5 15a5 5 0 0010 0v-1a5 5 0 00-10 0v1z" /></svg>
+                        <span v-if="breastfeedingTimer.isActive" class="text-sm font-mono mt-1">{{ breastfeedingTimer.elapsed }}</span>
+                    </button>
+                    <button @click="logEvent('milk')" class="bg-white hover:bg-slate-200 aspect-square rounded-2xl shadow-sm flex items-center justify-center transition-colors text-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button @click="logEvent('pee_poop')" class="bg-white hover:bg-slate-200 aspect-square rounded-2xl shadow-sm flex items-center justify-center transition-colors text-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    </button>
+                    <button @click="logEvent('pee')" class="bg-white hover:bg-slate-200 aspect-square rounded-2xl shadow-sm flex items-center justify-center transition-colors text-slate-600">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    </button>
+                </div>
+
+                <!-- Two-Column Log Layout -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <section>
+                        <h2 class="text-lg font-semibold mb-3 text-slate-800">授乳ログ</h2>
+                        <div class="p-4 rounded-xl text-center mb-4 bg-blue-100 text-blue-800">
+                            <p class="font-semibold text-base">{{ prediction.milk.message }}</p>
+                            <p v-if="prediction.milk.next_time" class="text-sm mt-1">
+                                {{ formatTime(prediction.milk.next_time) }} 頃 ({{ fromNow(prediction.milk.next_time) }})
+                            </p>
+                            <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-blue-200">{{ prediction.milk.plan_message }}</p>
+                        </div>
+                        <ul class="space-y-2">
+                            <li v-if="milkEvents.length === 0" class="text-center text-slate-500 pt-8 text-sm">記録がありません</li>
+                            <li v-for="event in milkEvents" :key="event.id" class="bg-white p-3 rounded-xl shadow-sm flex items-center justify-between">
+                                <div class="flex items-center font-semibold">
+                                    <div class="text-xl mr-3">{{ event.event_type === 'milk' ? '🍼' : '🤱' }}</div>
+                                    <div v-if="event.amount">{{ event.amount }}{{ event.event_type === 'breastfeeding' ? '分' : 'ml' }}</div>
+                                </div>
+                                <div class="flex items-center">
+                                    <p class="font-bold text-base mr-3">{{ formatDateTime(event.timestamp) }}</p>
+                                    <button @click="deleteEvent(event.id)" class="p-2 rounded-full hover:bg-slate-200 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 class="text-lg font-semibold mb-3 text-slate-800">おむつログ</h2>
+                        <div class="p-4 rounded-xl text-center mb-4 bg-teal-100 text-teal-800">
+                             <p class="font-semibold text-base">{{ prediction.diaper.message }}</p>
+                            <p v-if="prediction.diaper.next_time" class="text-sm mt-1">
+                                {{ formatTime(prediction.diaper.next_time) }} 頃 ({{ fromNow(prediction.diaper.next_time) }})
+                            </p>
+                            <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-teal-200">{{ prediction.diaper.plan_message }}</p>
+                        </div>
+                        <ul class="space-y-2">
+                            <li v-if="diaperEvents.length === 0" class="text-center text-slate-500 pt-8 text-sm">記録がありません</li>
+                             <li v-for="event in diaperEvents" :key="event.id" class="bg-white p-3 rounded-xl shadow-sm flex items-center justify-between">
+                                <div class="flex items-center font-semibold">
+                                    <div class="text-xl mr-3">
+                                        <span v-if="event.is_pee && event.is_poop">💧💩</span>
+                                        <span v-else-if="event.is_pee">💧</span>
+                                        <span v-else-if="event.is_poop">💩</span>
+                                    </div>
+                                </div>
+                                 <div class="flex items-center">
+                                    <p class="font-bold text-base mr-3">{{ formatDateTime(event.timestamp) }}</p>
+                                    <button @click="deleteEvent(event.id)" class="p-2 rounded-full hover:bg-slate-200 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+            </main>
+            
+            <!-- Dashboard View -->
+            <main v-else key="dashboard">
+                <h2 class="text-2xl font-bold mb-4">アクティビティタイムライン</h2>
+                <div class="bg-white p-2 sm:p-4 rounded-2xl shadow-sm">
+                    <canvas id="eventsChart"></canvas>
+                </div>
+            </main>
+        </transition>
+
+    </div>
+{% endraw %}
 <script>
     dayjs.extend(dayjs_plugin_utc);
     dayjs.extend(dayjs_plugin_timezone);
     dayjs.extend(dayjs_plugin_relativeTime);
+    dayjs.extend(dayjs_plugin_duration);
     dayjs.locale('ja');
     dayjs.tz.setDefault("Asia/Tokyo");
 
-    const { createApp } = Vue
+    const { createApp } = Vue;
 
     createApp({
         data() {
             return {
-                prediction: { message: '読み込み中...', next_milk_time: null },
-                latestEvents: [],
-                allEvents: [],
-                lastMilkAmount: 120, // Default or fetched from settings
-                currentView: 'main', // 'main' or 'dashboard'
-                chart: null,
-                breastfeedingTimer: {
-                    isActive: false,
-                    startTime: null,
-                    intervalId: null,
-                    elapsed: '00:00',
+                prediction: {
+                    milk: { message: '読み込み中...', plan_message: '...' },
+                    diaper: { message: '読み込み中...', plan_message: '...' }
                 },
-                lastBreastfeedingSide: 'left', // 'left' or 'right'
+                allEvents: [],
+                lastMilkAmount: 120,
+                currentView: 'main',
+                chart: null,
+                breastfeedingTimer: { isActive: false, startTime: null, intervalId: null, elapsed: '00:00' },
+            }
+        },
+        watch: {
+            currentView(newView, oldView) {
+                if (newView === 'dashboard') {
+                    this.$nextTick(() => {
+                        this.renderChart();
+                    });
+                }
             }
         },
         computed: {
-            predictionBgColor() {
-                if (!this.prediction.next_milk_time) return 'bg-blue-100';
-                const now = dayjs();
-                const nextTime = dayjs.utc(this.prediction.next_milk_time);
-                const diffMinutes = nextTime.diff(now, 'minute');
-                if (diffMinutes < -30) return 'bg-red-400 text-white'; // 30 mins overdue
-                if (diffMinutes < 0) return 'bg-yellow-300'; // Overdue
-                return 'bg-blue-100';
+            milkEvents() {
+                return this.allEvents.filter(e => e.event_type === 'milk' || e.event_type === 'breastfeeding').slice(0, 10);
+            },
+            diaperEvents() {
+                return this.allEvents.filter(e => e.event_type === 'diaper').slice(0, 10);
             },
             breastfeedingClass() {
                 return this.breastfeedingTimer.isActive 
-                    ? 'bg-pink-500 hover:bg-pink-600 text-white' 
-                    : 'bg-pink-300 hover:bg-pink-400 text-gray-800';
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-white hover:bg-slate-200 text-slate-600';
             }
         },
         methods: {
-            // --- UI & Formatting ---
             toggleView() {
                 this.currentView = this.currentView === 'main' ? 'dashboard' : 'main';
-                if (this.currentView === 'dashboard') {
-                    this.fetchAllEvents();
-                }
             },
-            formatTime(isoString) {
-                return isoString ? dayjs.utc(isoString).tz().format('HH:mm') : '';
-            },
-            formatDateTime(isoString) {
-                return isoString ? dayjs.utc(isoString).tz().format('MM/DD HH:mm') : '';
-            },
-            fromNow(isoString) {
-                return isoString ? dayjs.utc(isoString).tz().fromNow() : '';
-            },
-            getEventTypeDisplay(type) {
-                const types = {
-                    milk: 'ミルク',
-                    breastfeeding: '母乳',
-                    pee: 'おしっこ',
-                    poop: 'うんち',
-                    pee_poop: 'おしっこ+うんち',
-                };
-                return types[type] || 'その他';
-            },
-
-            // --- API Calls ---
-            async apiCall(url, method = 'GET', body = null) {
-                try {
-                    const options = {
-                        method,
-                        headers: { 'Content-Type': 'application/json' },
-                    };
-                    if (body) {
-                        options.body = JSON.stringify(body);
-                    }
-                    const response = await fetch(url, options);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    if (response.status === 204) return null;
-                    return await response.json();
-                } catch (error) {
-                    console.error('API call failed:', error);
-                    // Handle auth errors, e.g., redirect to login
-                    if (error.message.includes('401')) {
-                         window.location.href = '/login';
-                    }
-                }
-            },
+            formatTime(iso) { return iso ? dayjs.utc(iso).tz().format('HH:mm') : ''; },
+            formatDateTime(iso) { return iso ? dayjs.utc(iso).tz().format('M/D HH:mm') : ''; },
+            fromNow(iso) { return iso ? dayjs.utc(iso).tz().fromNow() : ''; },
             
-            async fetchPrediction() {
+            async apiCall(url, method = 'GET', body = null) {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) options.body = JSON.stringify(body);
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    if (response.status === 401) window.location.href = '/login';
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                return response.status === 204 ? null : response.json();
+            },
+            async fetchPrediction() { 
                 this.prediction = await this.apiCall('/api/prediction');
             },
-
-            async fetchLatestEvents() {
-                const events = await this.apiCall('/api/events?limit=3');
-                this.latestEvents = events || [];
-                // Update last milk amount for default value
-                const lastMilk = events.find(e => e.event_type === 'milk');
-                if (lastMilk) {
-                    this.lastMilkAmount = lastMilk.amount;
-                }
-            },
-            
             async fetchAllEvents() {
-                const events = await this.apiCall('/api/events?limit=100');
-                this.allEvents = events || [];
-                this.renderChart();
+                this.allEvents = await this.apiCall('/api/events?limit=500') || [];
+                const lastMilk = this.allEvents.find(e => e.event_type === 'milk');
+                if (lastMilk) this.lastMilkAmount = lastMilk.amount;
             },
-
-            async logEvent(type) {
-                let eventData = { event_type: type };
-                if (type === 'milk') {
-                    eventData.amount = this.lastMilkAmount;
-                } else if (type === 'pee') {
-                    eventData.is_pee = true;
-                } else if (type === 'poop') {
-                    eventData.is_poop = true;
-                } else if (type === 'pee_poop') {
-                     eventData.event_type = 'diaper';
-                     eventData.is_pee = true;
-                     eventData.is_poop = true;
+            async refreshData() {
+                try {
+                    await Promise.all([this.fetchPrediction(), this.fetchAllEvents()]);
+                    if (this.currentView === 'dashboard') {
+                       this.$nextTick(() => this.renderChart());
+                    }
+                } catch (error) {
+                    console.error("Data refresh failed:", error);
                 }
-                
+            },
+            async logEvent(type) {
+                let eventData = {};
+                switch (type) {
+                    case 'milk': eventData = { event_type: 'milk', amount: this.lastMilkAmount }; break;
+                    case 'pee': eventData = { event_type: 'diaper', is_pee: true, is_poop: false }; break;
+                    case 'poop': eventData = { event_type: 'diaper', is_pee: false, is_poop: true }; break;
+                    case 'pee_poop': eventData = { event_type: 'diaper', is_pee: true, is_poop: true }; break;
+                }
                 await this.apiCall('/api/events', 'POST', eventData);
                 this.refreshData();
             },
-
-             async logBreastfeeding() {
+            async logBreastfeeding() {
                 if (!this.breastfeedingTimer.isActive) {
-                    // Start timer
                     this.breastfeedingTimer.isActive = true;
                     this.breastfeedingTimer.startTime = dayjs();
                     localStorage.setItem('breastfeedingStartTime', this.breastfeedingTimer.startTime.toISOString());
                     this.breastfeedingTimer.intervalId = setInterval(() => {
-                        const now = dayjs();
-                        const diff = now.diff(this.breastfeedingTimer.startTime);
-                        const duration = dayjs.duration(diff);
-                        this.breastfeedingTimer.elapsed = `${String(duration.minutes()).padStart(2, '0')}:${String(duration.seconds()).padStart(2, '0')}`;
+                        const diff = dayjs().diff(this.breastfeedingTimer.startTime);
+                        this.breastfeedingTimer.elapsed = dayjs.duration(diff).format('mm:ss');
                     }, 1000);
                 } else {
-                    // Stop timer and log
                     clearInterval(this.breastfeedingTimer.intervalId);
-                    const endTime = dayjs();
-                    const startTime = dayjs(this.breastfeedingTimer.startTime);
-                    const durationMinutes = Math.round(endTime.diff(startTime, 'minute', true));
-                    
+                    const durationMinutes = Math.round(dayjs().diff(this.breastfeedingTimer.startTime, 'minute', true));
                     const eventData = {
-                        event_type: 'breastfeeding',
-                        amount: durationMinutes > 0 ? durationMinutes : 1, // Log at least 1 minute
-                        side: this.lastBreastfeedingSide,
-                        timestamp: startTime.utc().toISOString(),
+                        event_type: 'breastfeeding', amount: durationMinutes || 1,
+                        timestamp: this.breastfeedingTimer.startTime.utc().toISOString(),
                     };
-
                     await this.apiCall('/api/events', 'POST', eventData);
-
-                    // Reset timer and switch side
                     this.breastfeedingTimer.isActive = false;
-                    this.breastfeedingTimer.elapsed = '00:00';
                     localStorage.removeItem('breastfeedingStartTime');
-                    this.lastBreastfeedingSide = this.lastBreastfeedingSide === 'left' ? 'right' : 'left';
                     this.refreshData();
                 }
             },
-
             async deleteEvent(id) {
                 if (confirm('この記録を削除しますか？')) {
                     await this.apiCall(`/api/events/${id}`, 'DELETE');
                     this.refreshData();
                 }
             },
-            
-            refreshData() {
-                this.fetchPrediction();
-                this.fetchLatestEvents();
-                if (this.currentView === 'dashboard') {
-                    this.fetchAllEvents();
-                }
-            },
-
-            // --- Chart ---
             renderChart() {
-                if (!this.allEvents.length) return;
+                const ctx = document.getElementById('eventsChart')?.getContext('2d');
+                if (!ctx) return;
+
+                const twoWeeksAgo = dayjs().subtract(14, 'day').startOf('day');
+                const chartData = this.allEvents.filter(e => dayjs(e.timestamp).isAfter(twoWeeksAgo));
+
+                const milkData = chartData
+                    .filter(e => e.event_type === 'milk' || e.event_type === 'breastfeeding')
+                    .map(e => ({ x: e.timestamp, y: dayjs.utc(e.timestamp).tz().hour() + dayjs.utc(e.timestamp).tz().minute() / 60 }));
                 
-                this.$nextTick(() => {
-                    const ctx = document.getElementById('eventsChart').getContext('2d');
-                    const labels = [...new Set(this.allEvents.map(e => dayjs.utc(e.timestamp).tz().format('YYYY-MM-DD')))].sort();
-                    
-                    const milkCounts = {};
-                    const diaperCounts = {};
+                const diaperData = chartData
+                    .filter(e => e.event_type === 'diaper')
+                    .map(e => ({ x: e.timestamp, y: dayjs.utc(e.timestamp).tz().hour() + dayjs.utc(e.timestamp).tz().minute() / 60 }));
 
-                    this.allEvents.forEach(event => {
-                        const day = dayjs.utc(event.timestamp).tz().format('YYYY-MM-DD');
-                        if (event.event_type === 'milk' || event.event_type === 'breastfeeding') {
-                            milkCounts[day] = (milkCounts[day] || 0) + 1;
-                        } else if (event.is_pee || event.is_poop) {
-                            diaperCounts[day] = (diaperCounts[day] || 0) + 1;
-                        }
-                    });
-
-                    const milkData = labels.map(label => milkCounts[label] || 0);
-                    const diaperData = labels.map(label => diaperCounts[label] || 0);
-
-                    if (this.chart) {
-                        this.chart.destroy();
-                    }
-                    this.chart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [{
-                                label: '授乳回数',
-                                data: milkData,
-                                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                borderWidth: 1
-                            }, {
-                                label: 'おむつ交換回数',
-                                data: diaperData,
-                                backgroundColor: 'rgba(255, 159, 64, 0.5)',
-                                borderColor: 'rgba(255, 159, 64, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            scales: {
-                                y: { beginAtZero: true }
+                if (this.chart) this.chart.destroy();
+                this.chart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: '授乳', data: milkData,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            pointStyle: 'circle', radius: 6,
+                        }, {
+                            label: 'おむつ', data: diaperData,
+                            backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                            pointStyle: 'rect', radius: 6,
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'day', displayFormats: { day: 'M/D' } },
+                                min: twoWeeksAgo.toISOString(),
+                                max: dayjs().endOf('day').toISOString(),
+                            },
+                            y: {
+                                reverse: true, min: 0, max: 24,
+                                ticks: { stepSize: 3, callback: value => `${value}:00` }
                             }
-                        }
-                    });
+                        },
+                        plugins: { tooltip: { callbacks: {
+                            label: (context) => {
+                                const y = context.parsed.y;
+                                const hour = Math.floor(y);
+                                const minute = Math.round((y - hour) * 60);
+                                return `${context.dataset.label} @ ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                            }
+                        }}}
+                    }
                 });
             },
-            
             checkRunningBreastfeedingTimer() {
                 const savedStartTime = localStorage.getItem('breastfeedingStartTime');
                 if (savedStartTime) {
                     this.breastfeedingTimer.startTime = dayjs(savedStartTime);
                     this.breastfeedingTimer.isActive = true;
                      this.breastfeedingTimer.intervalId = setInterval(() => {
-                        const now = dayjs();
-                        const diff = now.diff(this.breastfeedingTimer.startTime);
-                        const duration = dayjs.duration(diff);
-                        this.breastfeedingTimer.elapsed = `${String(duration.minutes()).padStart(2, '0')}:${String(duration.seconds()).padStart(2, '0')}`;
+                        const diff = dayjs().diff(this.breastfeedingTimer.startTime);
+                        this.breastfeedingTimer.elapsed = dayjs.duration(diff).format('mm:ss');
                     }, 1000);
                 }
             }
@@ -359,12 +320,9 @@
         mounted() {
             this.refreshData();
             this.checkRunningBreastfeedingTimer();
-            // Refresh prediction every minute
-            setInterval(this.fetchPrediction, 60000);
+            setInterval(this.refreshData, 60000);
         }
-    }).mount('#app')
-
+    }).mount('#app');
 </script>
-
 </body>
 </html>

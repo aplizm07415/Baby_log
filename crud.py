@@ -18,9 +18,12 @@ def get_events(db: Session, skip: int = 0, limit: int = 100, start_date: Optiona
     return query.order_by(models.Event.timestamp.desc()).offset(skip).limit(limit).all()
 
 def create_event(db: Session, event: schemas.EventCreate) -> models.Event:
-    db_event = models.Event(**event.model_dump())
-    if event.timestamp is None:
-        db_event.timestamp = datetime.utcnow()
+    event_data = event.model_dump()
+    # If timestamp is not provided by client, remove it to use server_default
+    if "timestamp" in event_data and event_data["timestamp"] is None:
+        del event_data["timestamp"]
+
+    db_event = models.Event(**event_data)
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
@@ -46,35 +49,55 @@ def delete_event(db: Session, event_id: uuid.UUID) -> Optional[models.Event]:
 
 # --- Prediction Logic ---
 
-def get_next_milk_prediction(db: Session) -> schemas.Prediction:
-    # Get the last 3 milk events
+def get_next_milk_prediction(db: Session) -> schemas.MilkPrediction:
     recent_milk_events = db.query(models.Event).filter(
         models.Event.event_type.in_(["milk", "breastfeeding"]),
         models.Event.is_deleted == False
     ).order_by(models.Event.timestamp.desc()).limit(3).all()
 
+    last_event = recent_milk_events[0] if recent_milk_events else None
+    
+    # Plan
+    plan_time = (last_event.timestamp + timedelta(hours=3)) if last_event else None
+    plan_message = f"計画（3時間後）では{plan_time.strftime('%H:%M')}頃です" if plan_time else "記録がまだなく計画を計算できません"
+
+    # Prediction
     if len(recent_milk_events) < 2:
-        # Not enough data, use default interval (3 hours) from the last event if it exists
-        last_event = recent_milk_events[0] if recent_milk_events else None
         if last_event:
-            next_time = last_event.timestamp + timedelta(hours=3)
-            return schemas.Prediction(next_milk_time=next_time, message="まだデータが少ないため、3時間後を目安にしています。")
+            return schemas.MilkPrediction(message="データ不足のため、まずは計画を参考にしてください。", plan_time=plan_time, plan_message=plan_message)
         else:
-             return schemas.Prediction(next_milk_time=None, message="まだミルクの記録がありません。")
+             return schemas.MilkPrediction(message="まだ授乳の記録がありません。", plan_message=plan_message)
 
+    intervals = [(recent_milk_events[i].timestamp - recent_milk_events[i+1].timestamp).total_seconds() for i in range(len(recent_milk_events) - 1)]
+    avg_interval = sum(intervals) / len(intervals)
+    predicted_next_time = recent_milk_events[0].timestamp + timedelta(seconds=avg_interval)
 
-    # Calculate the average interval
-    intervals = []
-    for i in range(len(recent_milk_events) - 1):
-        interval = recent_milk_events[i].timestamp - recent_milk_events[i+1].timestamp
-        intervals.append(interval.total_seconds())
-    
-    avg_interval_seconds = sum(intervals) / len(intervals)
-    
-    last_milk_time = recent_milk_events[0].timestamp
-    predicted_next_time = last_milk_time + timedelta(seconds=avg_interval_seconds)
+    return schemas.MilkPrediction(next_time=predicted_next_time, message=f"次の授乳は約{int(avg_interval / 60)}分後の予測です。", plan_time=plan_time, plan_message=plan_message)
 
-    return schemas.Prediction(next_milk_time=predicted_next_time, message=f"直近の平均授乳間隔は約{int(avg_interval_seconds / 60)}分です。")
+def get_next_diaper_prediction(db: Session) -> schemas.DiaperPrediction:
+    recent_diaper_events = db.query(models.Event).filter(
+        models.Event.event_type == "diaper",
+        models.Event.is_deleted == False
+    ).order_by(models.Event.timestamp.desc()).limit(5).all()
+
+    last_event = recent_diaper_events[0] if recent_diaper_events else None
+
+    # Plan
+    plan_time = (last_event.timestamp + timedelta(hours=2)) if last_event else None
+    plan_message = f"計画（2時間後）では{plan_time.strftime('%H:%M')}頃です" if plan_time else "記録がまだなく計画を計算できません"
+
+    # Prediction
+    if len(recent_diaper_events) < 2:
+        if last_event:
+            return schemas.DiaperPrediction(message="データ不足のため、まずは計画を参考にしてください。", plan_time=plan_time, plan_message=plan_message)
+        else:
+            return schemas.DiaperPrediction(message="まだおむつの記録がありません。", plan_message=plan_message)
+
+    intervals = [(recent_diaper_events[i].timestamp - recent_diaper_events[i+1].timestamp).total_seconds() for i in range(len(recent_diaper_events) - 1)]
+    avg_interval = sum(intervals) / len(intervals)
+    predicted_next_time = recent_diaper_events[0].timestamp + timedelta(seconds=avg_interval)
+
+    return schemas.DiaperPrediction(next_time=predicted_next_time, message=f"次のおむつ交換は約{int(avg_interval / 60)}分後の予測です。", plan_time=plan_time, plan_message=plan_message)
 
 # --- Settings CRUD (example) ---
 

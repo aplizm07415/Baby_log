@@ -42,7 +42,19 @@ class Setting(SettingBase):
     class Config:
         from_attributes = True
 
-# --- Prediction Schema ---
-class Prediction(BaseModel):
-    next_milk_time: Optional[datetime]
+# --- Prediction Schemas ---
+class MilkPrediction(BaseModel):
+    next_time: Optional[datetime] = None
     message: str
+    plan_time: Optional[datetime] = None
+    plan_message: str
+
+class DiaperPrediction(BaseModel):
+    next_time: Optional[datetime] = None
+    message: str
+    plan_time: Optional[datetime] = None
+    plan_message: str
+
+class Predictions(BaseModel):
+    milk: MilkPrediction
+    diaper: DiaperPrediction

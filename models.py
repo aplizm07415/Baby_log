@@ -9,6 +9,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import UUID
 from sqlalchemy.orm import declarative_base
 
 from database import Base
